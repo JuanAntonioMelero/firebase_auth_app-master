@@ -3,13 +3,15 @@
 // final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 import 'package:firebase_auth_app/providers/auth_provider.dart';
+import 'package:firebase_auth_app/routes/router.dart';
 import 'package:firebase_auth_app/screens/gestionUsusarios_screen.dart';
 import 'package:firebase_auth_app/widgets/adminBuildCard.dart';
 import 'package:firebase_auth_app/widgets/menuDrawerAdmin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Importa el provider desde su nuevo archivo:
-import 'package:firebase_auth_app/services/auth_service.dart'; // Todavía necesario si usas el tipo AuthService explícitamente
+import 'package:firebase_auth_app/services/auth_service.dart';
+import 'package:go_router/go_router.dart'; // Todavía necesario si usas el tipo AuthService explícitamente
 
 class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
@@ -35,23 +37,12 @@ class AdminHomeScreen extends ConsumerWidget {
               spacing: 10,
               runSpacing: 10,
               children: [
-                ElevatedButton.icon(
-              icon: const Icon(Icons.group),
-              label: const Text('Gestionar usuarios'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GestionUsuariosScreen(),
-                  ),
-                );
-              },
-            ),
-                buildCard(context, 'Gestion de usuarios', Icons.security, '/permisos'),
-                buildCard(context, 'Historial de pedidos', Icons.history, '/historial'),
-                buildCard(context, 'Notificaciones locales', Icons.notifications, '/notificaciones'),
-                buildCard(context, 'Exportar pedidos', Icons.picture_as_pdf, '/exportar'),
-              ],
+               
+                buildCard(context, 'Gestion de usuarios', Icons.security, '${AppRoutes.adminHome}/${AppRoutes.gestionUsuarios}'),
+                buildCard(context, 'Historial de pedidos', Icons.history, '${AppRoutes.adminHome}/${AppRoutes.adminHistorial}'),
+                buildCard(context, 'Notificaciones locales', Icons.notifications, '${AppRoutes.adminHome}/${AppRoutes.adminNotificaciones}'),
+                buildCard(context, 'Exportar pedidos', Icons.picture_as_pdf, '${AppRoutes.adminHome}/${AppRoutes.adminExportar}'),
+             ],
             ),
           ],
         ),
