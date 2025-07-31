@@ -4,14 +4,13 @@
 
 import 'package:firebase_auth_app/providers/auth_provider.dart';
 import 'package:firebase_auth_app/routes/router.dart';
-import 'package:firebase_auth_app/screens/gestionUsusarios_screen.dart';
 import 'package:firebase_auth_app/widgets/adminBuildCard.dart';
 import 'package:firebase_auth_app/widgets/menuDrawerAdmin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Importa el provider desde su nuevo archivo:
 import 'package:firebase_auth_app/services/auth_service.dart';
-import 'package:go_router/go_router.dart'; // Todavía necesario si usas el tipo AuthService explícitamente
+// Todavía necesario si usas el tipo AuthService explícitamente
 
 class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
@@ -39,7 +38,7 @@ class AdminHomeScreen extends ConsumerWidget {
               children: [
                
                 buildCard(context, 'Gestion de usuarios', Icons.security, '${AppRoutes.adminHome}/${AppRoutes.gestionUsuarios}'),
-                buildCard(context, 'Historial de pedidos', Icons.history, '${AppRoutes.adminHome}/${AppRoutes.adminHistorial}'),
+                buildCard(context, 'Crear Productos', Icons.history, '${AppRoutes.adminHome}/${AppRoutes.crearProducto}'),
                 buildCard(context, 'Notificaciones locales', Icons.notifications, '${AppRoutes.adminHome}/${AppRoutes.adminNotificaciones}'),
                 buildCard(context, 'Exportar pedidos', Icons.picture_as_pdf, '${AppRoutes.adminHome}/${AppRoutes.adminExportar}'),
              ],

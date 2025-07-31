@@ -1,5 +1,8 @@
 // lib/config/router.dart
+//import 'package:firebase_auth_app/screens/adminHome_screen.dart';
+import 'package:firebase_auth_app/screens/PedidosEnTiempoReal.dart';
 import 'package:firebase_auth_app/screens/adminHome_screen.dart';
+import 'package:firebase_auth_app/screens/crearProducto.dart';
 import 'package:firebase_auth_app/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -19,20 +22,28 @@ import 'package:firebase_auth_app/providers/user_provider.dart';
 class AppRoutes {
   static const String auth = '/auth';
   static const String home = '/home';
-  // Ruta completa para tomar-pedido (se llamará como /home/tomar-pedido)
-  static const String tomarPedido = 'tomar-pedido'; // ¡Ahora es solo el segmento!
-  static const String detallePedido = 'detalle-pedido'; // Nombre de sub-ruta
   static const String adminHome = '/admin'; // Ruta principal de admin
   // Nuevas rutas (solo segmentos, se combinarán con /admin)
+
+
+    // Ruta completa para tomar-pedido (se llamará como /home/tomar-pedido)
   static const String gestionUsuarios = 'gestion-usuarios'; // ¡Ahora es solo el segmento!
   static const String adminPermisos = 'permisos'; // ¡Ahora es solo el segmento!
   static const String adminHistorial = 'historial'; // ¡Ahora es solo el segmento!
   static const String adminNotificaciones = 'notificaciones'; // ¡Ahora es solo el segmento!
   static const String adminExportar = 'exportar'; // ¡Ahora es solo el segmento!
+  static const String crearProducto = 'crear-producto'; // ¡NUEVO! Sub-ruta de home o independiente
+  static const String pedidosEnTiempoReal = 'pedidos-tiempo-real'; // Sub-ruta de home
+  static const String tomarPedido = 'tomar-pedido'; // Sub-ruta de home
+  static const String detallePedido = 'detalle-pedido'; // Nombre de sub-ruta
+
+
+
+  
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateChangesProvider);
+  final authState = ref.watch(usuarioStreamProvider);
   final appUserAsyncValue = ref.watch(appUserProvider);
 
   return GoRouter(
@@ -58,6 +69,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               return DetallePedidoPage(pedidoId: pedidoId!);
             },
           ),
+           GoRoute(
+          path: AppRoutes.pedidosEnTiempoReal, // Asegúrate de que esta ruta existe si la usas
+          builder: (context, state) => const PedidosEnTiempoRealPage(),
+        ),
+      
         ],
       ),
       // *** RUTAS DE ADMINISTRACIÓN ***
@@ -85,6 +101,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.adminExportar, // Solo el segmento "exportar"
             builder: (context, state) => const PlaceholderScreen(title: 'Exportar Pedidos'),
           ),
+            GoRoute( // ¡NUEVA RUTA!
+          path: AppRoutes.crearProducto,
+          builder: (context, state) => const CrearProductoPage(),
+        ),
         ],
       ),
     ],

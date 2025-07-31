@@ -1,17 +1,17 @@
 // lib/screens/home_screen.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth_app/models/usuario_model.dart';
 import 'package:firebase_auth_app/routes/router.dart';
+import 'package:firebase_auth_app/widgets/menuDrawerCamarero.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:go_router/go_router.dart'; // Import go_router
+import 'package:firebase_auth_app/models/pedido_model.dart';
 
 // Import your models, providers, routes, and widgets
-import 'package:firebase_auth_app/models/user_model.dart';
 import 'package:firebase_auth_app/providers/user_provider.dart'; // For appUserProvider
 import 'package:firebase_auth_app/providers/pedidos_provider.dart'; // For pedidosStreamProvider
 import 'package:firebase_auth_app/providers/botton_navigator_provider.dart'; // Assuming this is your bottom nav index provider
 
-import 'package:firebase_auth_app/widgets/menuDrawerCamarero.dart'; // Your custom drawer
 
 // Convert to ConsumerWidget
 class HomeScreen extends ConsumerWidget {
@@ -20,14 +20,13 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch the appUserProvider for user data
-    final AsyncValue<AppUser?> appUserAsyncValue = ref.watch(appUserProvider);
+    final AsyncValue<Usuario?> appUserAsyncValue = ref.watch(appUserProvider);
 
     // Watch the bottom navigation bar index provider
     final int selectedIndex = ref.watch(bottomNavBarIndexProvider);
 
     // Watch the pedidos stream provider
-    final AsyncValue<QuerySnapshot> pedidosAsyncValue = ref.watch(pedidosStreamProvider);
-
+final AsyncValue<List<Pedido>> pedidosAsyncValue = ref.watch(pedidosStreamProvider);
     // Handle the appUserAsyncValue states (loading, error, data)
     return appUserAsyncValue.when(
       data: (appUser) {
@@ -46,7 +45,7 @@ class HomeScreen extends ConsumerWidget {
           backgroundColor: Colors.white,
           appBar: null, // Custom AppBar in Column
           // Pass appUser to the drawer, which now expects AppUser?
-          drawer: menuDrawerCamarero(appUser, context),
+          drawer:  const MenuDrawerCamarero(),
           body: Column(
             children: [
               // Top section (yellow background)
@@ -75,7 +74,7 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     // Display user's name from AppUser model
                     Text(
-                      'Hola, ${appUser.name}', // Use appUser.nombre directly
+                      'Hola, ${appUser.nombre}', // Use appUser.nombre directly
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -86,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
                     ElevatedButton.icon(
                       onPressed: () {
                         // Navigate using go_router
-                        context.go(AppRoutes.home + '/' + AppRoutes.tomarPedido); // Full path /home/tomar-pedido
+                        context.go('${AppRoutes.home}/${AppRoutes.tomarPedido}'); // Full path /home/tomar-pedido
                       },
                       icon: const Icon(Icons.edit_note, color: Colors.white),
                       label: const Text(
@@ -123,8 +122,9 @@ class HomeScreen extends ConsumerWidget {
                       Expanded(
                         // Use AsyncValue.when for the pedidosStreamProvider
                         child: pedidosAsyncValue.when(
-                          data: (QuerySnapshot snapshot) {
-                            final pedidos = snapshot.docs;
+                          //data: (QuerySnapshot snapshot) {
+                           data: (List<Pedido> pedidos) { // Cambia QuerySnapshot a List<Pedido>
+                           
 
                             if (pedidos.isEmpty) {
                               return const Center(child: Text('No hay pedidos activos'));
@@ -134,8 +134,8 @@ class HomeScreen extends ConsumerWidget {
                               itemCount: pedidos.length,
                               itemBuilder: (context, index) {
                                 final pedido = pedidos[index];
-                                final mesa = pedido['mesa'];
-                                final comensales = pedido['comensales'];
+                                final mesa = pedido.mesa;
+                                final comensales = pedido.comensales;
                                 final pedidoId = pedido.id;
 
                                 return GestureDetector(
@@ -183,6 +183,7 @@ class HomeScreen extends ConsumerWidget {
         );
       },
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      
       error: (error, stack) => Scaffold(
         appBar: AppBar(title: const Text('Error de Usuario')),
         body: Center(child: Text('Error al cargar datos del usuario: $error')),

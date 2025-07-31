@@ -1,15 +1,20 @@
+import 'package:firebase_auth_app/models/categoriaProducto_model.dart';
+import 'package:firebase_auth_app/models/producto_model.dart';
+import 'package:firebase_auth_app/providers/categoriasProductos_provider.dart';
+import 'package:firebase_auth_app/providers/productos_provider.dart';
 import 'package:firebase_auth_app/screens/PedidosEnTiempoReal.dart';
+import 'package:firebase_auth_app/services/pedidos_service.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TomarPedidoPage extends StatefulWidget {
+class TomarPedidoPage extends ConsumerStatefulWidget {
   const TomarPedidoPage({super.key});
 
   @override
-  _TomarPedidoPageState createState() => _TomarPedidoPageState();
+  ConsumerState<TomarPedidoPage> createState() => _TomarPedidoPageState();
 }
 
-class _TomarPedidoPageState extends State<TomarPedidoPage> {
+class _TomarPedidoPageState extends ConsumerState<TomarPedidoPage> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
   final List<String> mesas = ['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4'];
@@ -18,56 +23,32 @@ class _TomarPedidoPageState extends State<TomarPedidoPage> {
 
   final List<String> categorias = [
     'Todos',
-    'Entrantes',
-    'Platos',
-    'Postres',
-    'Bebidas',
+    // Las categorías reales se generarán dinámicamente
   ];
   String categoriaSeleccionada = 'Todos';
-
-  final List<Map<String, dynamic>> menu = [
-    {
-      'nombre': 'Pizza Margarita',
-      'precio': 8.5,
-      'categoria': 'Platos',
-      'imagen': 'https://images.unsplash.com/photo-1600891964599-f61ba0e24092',
-    },
-    {
-      'nombre': 'Ensalada César',
-      'precio': 6.0,
-      'categoria': 'Entrantes',
-      'imagen': 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7',
-    },
-    {
-      'nombre': 'Hamburguesa BBQ',
-      'precio': 9.0,
-      'categoria': 'Platos',
-      'imagen': 'https://images.unsplash.com/photo-1550547660-d9450f859349',
-    },
-    {
-      'nombre': 'Tarta de queso',
-      'precio': 4.5,
-      'categoria': 'Postres',
-      'imagen': 'https://images.unsplash.com/photo-1600891964599-f61ba0e24092',
-    },
-    {
-      'nombre': 'Limonada fresca',
-      'precio': 3.0,
-      'categoria': 'Bebidas',
-      'imagen': 'https://images.unsplash.com/photo-1600891964599-f61ba0e24092',
-    },
-  ];
-
+  
   final List<Map<String, dynamic>> pedidoActual = [];
   bool pedidoEnviado = false;
 
-  void agregarAlPedido(String nombre, double precio) {
-    final index = pedidoActual.indexWhere((item) => item['nombre'] == nombre);
+
+  // --- NUEVO: Lista para almacenar los productos del menú cargados desde Firebase ---
+  List<Producto> productosDelMenu = [];
+
+
+  void agregarAlPedido(Producto producto) {
+        final index = pedidoActual.indexWhere((item) => item['nombre'] == producto.nombre);
     if (index != -1) {
       setState(() => pedidoActual[index]['cantidad'] += 1);
       _listKey.currentState!.setState(() {});
     } else {
-      final newItem = {'nombre': nombre, 'precio': precio, 'cantidad': 1};
+
+      final newItem = {
+        'id': producto.id, // Opcional, pero útil
+        'nombre': producto.nombre,
+        'precio': producto.precio,
+        'cantidad': 1,
+        'categoria': producto.categoria, // También útil para referencias futuras
+      };
       pedidoActual.add(newItem);
       _listKey.currentState!.insertItem(pedidoActual.length - 1);
     }
@@ -92,27 +73,52 @@ class _TomarPedidoPageState extends State<TomarPedidoPage> {
     }
 
     setState(() => pedidoEnviado = true);
+ // Calcula el total antes de enviar
+    double totalPedido = pedidoActual.fold<double>(
+      0.0,
+      (sum, item) => sum + (item['precio'] * item['cantidad']),
+    );
 
-    final pedido = {
+    final Map<String, dynamic> nuevoPedidoData = {
       'mesa': mesaSeleccionada,
       'comensales': comensales,
       'estado': 'pendiente',
-      'fecha': Timestamp.now(),
+      // 'fecha' se establecerá automáticamente en el servicio con FieldValue.serverTimestamp()
       'items': pedidoActual,
       'pagado': false,
+      'total': totalPedido, // Agrega el total aquí
     };
 
-    await FirebaseFirestore.instance.collection('pedidos').add(pedido);
+        // --- CAMBIO CLAVE 4: Usar Riverpod para llamar al servicio ---
+    final pedidosService = ref.read(pedidosServiceProvider);
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Pedido enviado a Firebase')));
+try {
+      await pedidosService.addPedido(nuevoPedidoData);
 
-    setState(() {
-      pedidoActual.clear();
-      pedidoEnviado = false;
-      _listKey.currentState!.setState(() {});
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pedido enviado correctamente')),
+      );
+
+      // Limpiar el pedido actual después de enviar
+      setState(() {
+        pedidoActual.clear();
+        pedidoEnviado = false;
+        // Si _listKey.currentState es nulo, no intentes llamar a setState en él.
+        // Opcional: _listKey.currentState!.setState(() {}); si AnimatedList necesita forzar el rebuild.
+      });
+
+      // Opcional: Navegar a alguna pantalla o cerrar el modal
+      // Navigator.pop(context); // Si TomarPedidoPage es un modal
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar el pedido: $e')),
+      );
+      setState(() {
+        pedidoEnviado = false; // Restablecer el estado del botón si hay un error
+      });
+    }
+
+    
   }
 
   Widget _buildResumenItem(
@@ -120,9 +126,12 @@ class _TomarPedidoPageState extends State<TomarPedidoPage> {
     int index,
     Animation<double> animation,
   ) {
-    final imagen = menu.firstWhere(
-      (plato) => plato['nombre'] == item['nombre'],
-    )['imagen'];
+    final imagen = productosDelMenu.firstWhere(
+      (producto) => producto.nombre == item['nombre'],
+      orElse: () => Producto( // Devuelve un producto por defecto si no se encuentra (para evitar errores)
+        id: '', nombre: item['nombre'], precio: 0.0, categoria: '', imagen: 'https://via.placeholder.com/150',
+      ),
+    ).imagen;
     return SizeTransition(
       sizeFactor: animation,
       child: Card(
@@ -152,11 +161,9 @@ class _TomarPedidoPageState extends State<TomarPedidoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final platosFiltrados = categoriaSeleccionada == 'Todos'
-        ? menu
-        : menu
-              .where((plato) => plato['categoria'] == categoriaSeleccionada)
-              .toList();
+    final AsyncValue<List<Producto>> productosAsyncValue = ref.watch(productosStreamProvider);
+    final AsyncValue<List<CategoriaProducto>> categoriasAsyncValue = ref.watch(categoriasStreamProvider);
+
 
     return Scaffold(
       appBar: AppBar(
@@ -176,140 +183,167 @@ class _TomarPedidoPageState extends State<TomarPedidoPage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Mesa',
-                      border: OutlineInputBorder(),
+     body: productosAsyncValue.when(
+        data: (productos) {
+          productosDelMenu = productos;
+
+          return categoriasAsyncValue.when(
+            data: (categoriasObj) { // Ahora recibimos objetos CategoriaProducto
+              final List<String> categoriasNombres = ['Todos', ...categoriasObj.map((cat) => cat.nombre)];
+              // Asegurarse de que categoriaSeleccionada es una de las opciones válidas
+              if (!categoriasNombres.contains(categoriaSeleccionada)) {
+                categoriaSeleccionada = 'Todos';
+              }
+
+              final platosFiltrados = categoriaSeleccionada == 'Todos'
+                  ? productosDelMenu
+                  : productosDelMenu
+                        .where((producto) => producto.categoria == categoriaSeleccionada)
+                        .toList();
+
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(
+                              labelText: 'Mesa',
+                              border: OutlineInputBorder(),
+                            ),
+                            value: mesaSeleccionada,
+                            items: mesas
+                                .map(
+                                  (mesa) =>
+                                      DropdownMenuItem(value: mesa, child: Text(mesa)),
+                                )
+                                .toList(),
+                            onChanged: (value) =>
+                                setState(() => mesaSeleccionada = value),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            decoration: const InputDecoration(
+                              labelText: 'Comensales',
+                              border: OutlineInputBorder(),
+                            ),
+                            value: comensales,
+                            items: List.generate(12, (index) => index + 1)
+                                .map(
+                                  (num) =>
+                                      DropdownMenuItem(value: num, child: Text('$num')),
+                                )
+                                .toList(),
+                            onChanged: (value) => setState(() => comensales = value!),
+                          ),
+                        ),
+                      ],
                     ),
-                    value: mesaSeleccionada,
-                    items: mesas
-                        .map(
-                          (mesa) =>
-                              DropdownMenuItem(value: mesa, child: Text(mesa)),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => mesaSeleccionada = value),
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    decoration: InputDecoration(
-                      labelText: 'Comensales',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 10),
+                    DropdownButton<String>(
+                      value: categoriaSeleccionada,
+                      items: categoriasNombres // ¡Usar los NOMBRES de las categorías!
+                          .map((catNombre) => DropdownMenuItem(value: catNombre, child: Text(catNombre)))
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => categoriaSeleccionada = value!),
                     ),
-                    value: comensales,
-                    items: List.generate(12, (index) => index + 1)
-                        .map(
-                          (num) =>
-                              DropdownMenuItem(value: num, child: Text('$num')),
-                        )
-                        .toList(),
-                    onChanged: (value) => setState(() => comensales = value!),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 10),
-            DropdownButton<String>(
-              value: categoriaSeleccionada,
-              items: categorias
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                  .toList(),
-              onChanged: (value) =>
-                  setState(() => categoriaSeleccionada = value!),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: platosFiltrados.length,
-                itemBuilder: (context, index) {
-                  final plato = platosFiltrados[index];
-                  return Card(
-                    color: Colors.orange.shade50,
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          plato['imagen'],
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.cover,
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: platosFiltrados.length,
+                        itemBuilder: (context, index) {
+                          final producto = platosFiltrados[index];
+                          return Card(
+                            color: Colors.orange.shade50,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  producto.imagen,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              title: Text(producto.nombre),
+                              subtitle: Text('€${producto.precio.toStringAsFixed(2)}'),
+                              trailing: GestureDetector(
+                                onTap: () =>
+                                    agregarAlPedido(producto),
+                                child: const AnimatedScale(
+                                  scale: 1.1,
+                                  duration: Duration(milliseconds: 150),
+                                  child: Icon(Icons.add_circle, color: Colors.green),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Resumen del pedido',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(
+                      height: 160,
+                      child: AnimatedList(
+                        key: _listKey,
+                        initialItemCount: pedidoActual.length,
+                        itemBuilder: (context, index, animation) {
+                          if (index < 0 || index >= pedidoActual.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return _buildResumenItem(
+                            pedidoActual[index],
+                            index,
+                            animation,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: pedidoEnviado
+                              ? Colors.green
+                              : Colors.deepOrange,
+                        ),
+                        onPressed: enviarPedido,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          child: pedidoEnviado
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  key: ValueKey('check'),
+                                  size: 28,
+                                )
+                              : const Text('Enviar pedido', key: ValueKey('text')),
                         ),
                       ),
-                      title: Text(plato['nombre']),
-                      subtitle: Text('€${plato['precio']}'),
-                      trailing: GestureDetector(
-                        onTap: () =>
-                            agregarAlPedido(plato['nombre'], plato['precio']),
-                        child: AnimatedScale(
-                          scale: 1.1,
-                          duration: Duration(milliseconds: 150),
-                          child: Icon(Icons.add_circle, color: Colors.green),
-                        ),
-                      ),
                     ),
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Resumen del pedido',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(
-              height: 160,
-              child: AnimatedList(
-                key: _listKey,
-                initialItemCount: pedidoActual.length,
-                itemBuilder: (context, index, animation) {
-                  if (index < 0 || index >= pedidoActual.length) {
-                    return SizedBox.shrink();
-                  }
-                  return _buildResumenItem(
-                    pedidoActual[index],
-                    index,
-                    animation,
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: 10),
-            AnimatedContainer(
-              duration: Duration(milliseconds: 500),
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: pedidoEnviado
-                      ? Colors.green
-                      : Colors.deepOrange,
+                  ],
                 ),
-                onPressed: enviarPedido,
-                child: AnimatedSwitcher(
-                  duration: Duration(milliseconds: 500),
-                  child: pedidoEnviado
-                      ? Icon(
-                          Icons.check_circle,
-                          key: ValueKey('check'),
-                          size: 28,
-                        )
-                      : Text('Enviar pedido', key: ValueKey('text')),
-                ),
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(child: Text('Error al cargar categorías: $error')),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(child: Text('Error al cargar productos: $error')),
       ),
-    );
+     );
   }
 }

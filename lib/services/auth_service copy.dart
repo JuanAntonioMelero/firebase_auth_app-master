@@ -2,22 +2,16 @@
 // Este archivo contiene la lógica para interactuar con Firebase Authentication.
 // Proporciona métodos para registrar, iniciar sesión y cerrar sesión.
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth_app/models/usuario_model.dart';
 
 class AuthService {
   // Instancia de FirebaseAuth para interactuar con el servicio de autenticación.
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  // Instancia de FirebaseFirestore para interactuar con la base de datos Firestore.
-  // ¡Ahora _firestore se inicializa en el constructor!
-  final FirebaseFirestore _firestore;
 
-  // Constructor de la clase AuthService
-  AuthService() : _firestore = FirebaseFirestore.instance; // <--- ¡Esta es la clave!
-
+ // ¡Añade esta línea!
   // Este getter expone el stream de cambios de estado de autenticación de Firebase.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
 
   // Método para registrar un nuevo usuario con email y contraseña.
   // Retorna el objeto User si el registro es exitoso, de lo contrario null.
@@ -83,20 +77,5 @@ class AuthService {
   // Útil para escuchar cambios en tiempo real en la UI.
   Stream<User?> get user {
     return _auth.authStateChanges();
-  }
-
-  // Método para obtener los detalles de Usuario desde Firestore
-  Future<Usuario?> getUsuarioFromFirestore(String uid) async {
-    try {
-      final userDoc = await _firestore.collection('users').doc(uid).get();
-      if (userDoc.exists) {
-        // Asegúrate de que el constructor Usuario.fromFirestore acepte un DocumentSnapshot
-        return Usuario.fromFirestore(userDoc);
-      }
-      return null;
-    } catch (e) {
-      print('Error al obtener Usuario desde Firestore para $uid: $e');
-      return null;
-    }
   }
 }

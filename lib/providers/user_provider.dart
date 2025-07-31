@@ -1,13 +1,13 @@
 
 // NUEVO: Provider para los datos completos del usuario desde Firestore
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth_app/models/user_model.dart';
+import 'package:firebase_auth_app/models/usuario_model.dart';
 import 'package:firebase_auth_app/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final appUserProvider = StreamProvider<AppUser?>((ref) {
+final appUserProvider = StreamProvider<Usuario?>((ref) {
   // Observa los cambios de autenticación
-  final authUser = ref.watch(authStateChangesProvider);
+  final authUser = ref.watch(usuarioStreamProvider);
 
   return authUser.when(
     data: (user) {
@@ -22,7 +22,7 @@ final appUserProvider = StreamProvider<AppUser?>((ref) {
             .snapshots()
             .map((snapshot) {
               if (snapshot.exists) {
-                return AppUser.fromFirestore(snapshot);
+                return Usuario.fromFirestore(snapshot);
               } else {
                 // El documento del usuario no existe en Firestore
                 print('Advertencia: Documento de usuario ${user.uid} no encontrado en Firestore.');
